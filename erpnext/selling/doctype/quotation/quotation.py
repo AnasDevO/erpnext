@@ -565,9 +565,15 @@ def _make_customer(source_name, ignore_permissions=False):
 	if quotation.quotation_to == "Customer":
 		return frappe.get_doc("Customer", quotation.party_name)
 	elif quotation.quotation_to == "CRM Deal":
-		customer_name = frappe.get_value("Customer", {"crm_deal": quotation.party_name})
-		if customer_name:
-			return frappe.get_doc("Customer", customer_name)
+		# Support multiple deals per customer: try direct lookup first,
+    	# then fallback to the erpnext_customer stored on the CRM Deal.
+    	customer_name = frappe.db.exists("Customer", {"crm_deal": quotation.party_name})
+    	if not customer_name:
+        	customer_name = frappe.db.get_value(
+            	"CRM Deal", quotation.party_name, "erpnext_customer"
+        	)
+    	if customer_name:
+        	return frappe.get_doc("Customer", customer_name)
 
 	# Check if a Customer already exists for the Lead or Prospect.
 	existing_customer = None
